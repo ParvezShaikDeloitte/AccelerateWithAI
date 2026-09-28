@@ -196,11 +196,23 @@ def _preview_parquet_files(paths: list[str]) -> dict:
 
 
 def _table_name_from_path(path: str) -> str:
-    """Derive a clean table name from a Parquet file path, e.g.
-    'sales_data_bronze.parquet' -> 'sales_data_bronze'."""
+    """Derive a clean base table name from a Parquet file path by stripping
+    both the file extension and any known layer suffix, e.g.
+    'sales_data_silver.parquet' -> 'sales_data'
+    'sales_data_bronze.parquet' -> 'sales_data'
+
+    This keeps the name consistent with how silver_frames and bronze_frames are
+    keyed inside the execution agents (gold_agent._strip_silver_suffix,
+    silver_agent._strip_bronze_suffix), so STTM source_table values match the
+    lookup dict keys at execution time.
+    """
     import os
 
-    return os.path.splitext(os.path.basename(path))[0]
+    stem = os.path.splitext(os.path.basename(path))[0]
+    for suffix in ("_silver", "_bronze", "_gold"):
+        if stem.endswith(suffix):
+            return stem[: -len(suffix)]
+    return stem
 
 
 def _run_sttm_agent(context: dict, goal: str, layer: str, run_id: str) -> str:
